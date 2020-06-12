@@ -1,2 +1,4 @@
 node_modules/
 google-credential.json
+config.*
+*.txt

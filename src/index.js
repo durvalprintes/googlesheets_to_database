@@ -2,74 +2,103 @@ const { GoogleSpreadsheet } = require("google-spreadsheet");
 const { Client } = require("pg");
 const format = require("pg-format");
 const date = require("moment");
+const config = require("../config");
+const file = require("fs");
+var error = "",
+  days = [];
 
 const insertData = async (values) => {
-  const connectionString =
-    "postgresql://postgres:postgres@192.168.99.100:5432/rbe";
-
-  const query =
-    "INSERT INTO cov.diario_atendimento2(dt_atendimento, qt_leitosclinicos, qt_leitosclinicosocupados," +
-    " qt_leitosur, qt_leitosuti, qt_leitosurocupados, qt_leitosutiocupados, qt_geralleitosinternacoes," +
-    " qt_atendimentos_geral, qt_atendimentos_covidleve, qt_atendiementos_covidmoderada, qt_atendimentos_covidgrave," +
-    " qt_obitossuspeitos, qt_obitosconfirmados, co_cnes) VALUES %L RETURNING id_registro";
-  const insert = format(query, values);
-
+  const connectionString = config.connection;
   let db;
   try {
     db = new Client({ connectionString });
     await db.connect();
     await db.query("BEGIN");
-    const { rows } = await db.query(insert);
-    console.log(rows);
+    await db.query(format(config.delete, [...new Set(days)]));
+    await db.query(format(config.insert, values));
     await db.query("COMMIT");
   } catch (e) {
     await db.query("ROLLBACK");
-    console.log(e.stack);
+    throw e;
   } finally {
     db.end();
   }
 };
 
-const insertDataSheet = async () => {
-  const sheets = [
-    // { id: "1Y2D-MZYCZsjDBozDapkIRV3elho9gkSA53ihQ7azTXA", cnes: "0090301" },
-    {
-      id: "1TwHyvvZ5vvAhni3frDxvZWipMIDIFU2Ea5RbDWfQ7uQ",
-      cnes: "2337339",
-      nome: "HPSM14_Mario_Pinotti",
-    },
-  ];
+function validData(sheet, column, field) {
+  if (new RegExp(config.rules).test(field)) {
+    error +=
+      "Data error in " +
+      sheet +
+      " at " +
+      column +
+      " on read value " +
+      field +
+      ", replaced by 0.\n";
+    return "0";
+  }
+  return field;
+}
 
-  const spreadsheet = new GoogleSpreadsheet(sheets[0].id);
-
+async function getData(doc) {
+  const spreadsheet = new GoogleSpreadsheet(doc.id);
   await spreadsheet.useServiceAccountAuth(require("../google-credential.json"));
-
   await spreadsheet.loadInfo();
   const sheet = spreadsheet.sheetsByIndex[0];
-
-  await sheet.loadHeaderRow();
-  const columns = sheet.headerValues;
-
   const rows = await sheet.getRows();
 
   const today = date().format("DD/MM/yyyy");
-
-  let register,
-    values = [];
+  const lastWorkday =
+    date().day() === 1
+      ? date().subtract(2, "days").format("DD/MM/yyyy")
+      : date().subtract(1, "days").format("DD/MM/yyyy");
+  let registers = [],
+    fields;
 
   for (let i = 0; i < rows.length && rows[i].DATA <= today; i++) {
-    register = [];
-    columns.forEach((column) => {
-      register.push(
-        rows[i][column] === "" || rows[i][column] === undefined
-          ? "0"
-          : rows[i][column]
-      );
-    });
-    register.push(sheets[0].cnes);
-    values.push(register);
+    if (rows[i].DATA > lastWorkday) {
+      days.push(rows[i].DATA);
+      fields = [doc.cnes];
+      config.columns.forEach((column) => {
+        fields.push(
+          rows[i][column] === "" || rows[i][column] === undefined
+            ? "0"
+            : column !== "DATA"
+            ? validData(sheet.title, column, rows[i][column])
+            : rows[i][column]
+        );
+      });
+      registers.push(fields);
+    }
   }
-  insertData(values);
+
+  return registers;
+}
+
+const Log = (msg, filename) => {
+  if (msg != "") {
+    const log = file.createWriteStream(filename, { flags: "a" });
+    log.write(
+      "\n[" + date().format("MMMM Do YYYY, h:mm:ss a") + "]:\n" + msg + "\n"
+    );
+    log.end();
+  }
+};
+
+const insertDataSheet = async () => {
+  try {
+    let values = [];
+    for (const sheet of config.sheets) {
+      values = values.concat(await getData(sheet));
+    }
+    values.sort((value_a, value_b) => value_a[0] - value_b[0]);
+    Log(error, "logData.txt");
+    await insertData(values);
+    console.log("Ok.");
+  } catch (e) {
+    console.log("Consulte o log.");
+    Log(e.stack, "log.txt");
+  }
 };
 
 insertDataSheet();
