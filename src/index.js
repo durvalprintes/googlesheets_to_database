@@ -4,8 +4,20 @@ const format = require("pg-format");
 const date = require("moment");
 const config = require("../config");
 const file = require("fs");
-var error = "",
+const mailer = require("nodemailer");
+var replacedByZero = "",
   days = [];
+
+const sendMail = async () => {
+  const noreplay = mailer.createTransport(config.email);
+  noreplay.sendMail(config.emailOptions, (err, res) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log("Email sent.");
+    }
+  });
+};
 
 const insertData = async (values) => {
   const connectionString = config.connection;
@@ -17,17 +29,17 @@ const insertData = async (values) => {
     await db.query(format(config.delete, [...new Set(days)]));
     await db.query(format(config.insert, values));
     await db.query("COMMIT");
-  } catch (e) {
+  } catch (error) {
     await db.query("ROLLBACK");
-    throw e;
+    throw error;
   } finally {
     db.end();
   }
 };
 
 function validData(sheet, column, field) {
-  if (new RegExp(config.rules).test(field)) {
-    error +=
+  if (new RegExp(/[[1-9]*[0]*[1-9]+[0-9]{3,}|[^0-9]+/).test(field)) {
+    replacedByZero +=
       "Data error in " +
       sheet +
       " at " +
@@ -76,13 +88,11 @@ async function getData(doc) {
 }
 
 const Log = (msg, filename) => {
-  if (msg != "") {
-    const log = file.createWriteStream(filename, { flags: "a" });
-    log.write(
-      "\n[" + date().format("MMMM Do YYYY, h:mm:ss a") + "]:\n" + msg + "\n"
-    );
-    log.end();
-  }
+  const log = file.createWriteStream(filename, { flags: "a" });
+  log.write(
+    "\n[" + date().format("MMMM Do YYYY, h:mm:ss a") + "]:\n" + msg + "\n"
+  );
+  log.end();
 };
 
 const insertDataSheet = async () => {
@@ -91,13 +101,18 @@ const insertDataSheet = async () => {
     for (const sheet of config.sheets) {
       values = values.concat(await getData(sheet));
     }
-    values.sort((value_a, value_b) => value_a[0] - value_b[0]);
-    Log(error, "logData.txt");
+    values.sort((cnes_a, cnes_b) => cnes_a[0] - cnes_b[0]);
     await insertData(values);
-    console.log("Ok.");
-  } catch (e) {
-    console.log("Consulte o log.");
-    Log(e.stack, "log.txt");
+    if (replacedByZero != "") {
+      Log(replacedByZero, "logData.txt");
+      console.log("Some fields was replaced by 0. See Data log for details.");
+    }
+    console.log("Status ok. Check the database.");
+  } catch (error) {
+    console.log("Status failed. See error log for details.");
+    Log(error.stack, "log.txt");
+  } finally {
+    sendMail();
   }
 };
 
