@@ -90,9 +90,14 @@ module.exports = {
       pass: "d061107V",
     },
   },
-  emailOptions: {
-    to: "van.messias@gmail.com",
-    subject: "RBE - Atendimento diário",
-    text: "TESTE",
+  handlebarsOptions: {
+    viewEngine: {
+      extname: ".hbs",
+      layoutsDir: "src/email/",
+      defaultLayout: "template",
+      partialsDir: "src/email/",
+    },
+    viewPath: "src/email",
+    extName: ".hbs",
   },
 };

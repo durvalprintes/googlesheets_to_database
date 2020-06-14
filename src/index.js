@@ -5,6 +5,7 @@ const sql = require("sql");
 const date = require("moment");
 const file = require("fs");
 const mailer = require("nodemailer");
+const hbs = require("nodemailer-express-handlebars");
 
 sql.setDialect("postgres");
 const table = sql.define(property.table),
@@ -112,7 +113,7 @@ async function getData(doc) {
   return registers;
 }
 
-const Log = (msg, filename) => {
+const writeLog = (msg, filename) => {
   const log = file.createWriteStream(filename, { flags: "a" });
   log.write(
     "[" + date().format("MMMM Do YYYY, h:mm:ss a") + "]:\n" + msg + "\n"
@@ -123,7 +124,15 @@ const Log = (msg, filename) => {
 const sendMail = async () => {
   try {
     const noreplay = mailer.createTransport(property.email);
-    await noreplay.sendMail(property.emailOptions);
+    noreplay.use("compile", hbs(property.handlebarsOptions));
+    await noreplay.sendMail({
+      to: "durvalprintes@gmail.com",
+      subject: "Atendimento diário",
+      template: "template",
+      context: {
+        date: today,
+      },
+    });
     console.log("Email sent.");
   } catch (error) {
     console.log("Send email failed.\n" + error.stack);
@@ -143,13 +152,13 @@ const insertDataSheet = async () => {
     );
     await insertData(values);
     if (replacedByZero != "") {
-      Log(replacedByZero, "logData.txt");
+      writeLog(replacedByZero, "logData.txt");
       console.log("Some fields was replaced by 0. See data log for details.");
     }
     console.log("Status ok. Check the database.");
   } catch (error) {
     console.log("Status failed. See log for details.");
-    Log(error.stack + "\n", "log.txt");
+    writeLog(error.stack + "\n", "log.txt");
   } finally {
     sendMail();
   }

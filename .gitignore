@@ -1,5 +1,6 @@
+.vscode/
 node_modules/
 google-credential.json
-config.*
+properties.*
 *.txt
 *.lock
