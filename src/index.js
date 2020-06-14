@@ -1,4 +1,4 @@
-const config = require("../config");
+const property = require("../properties");
 const { GoogleSpreadsheet } = require("google-spreadsheet");
 const { Client } = require("pg");
 const sql = require("sql");
@@ -7,7 +7,7 @@ const file = require("fs");
 const mailer = require("nodemailer");
 
 sql.setDialect("postgres");
-const table = sql.define(config.table),
+const table = sql.define(property.table),
   today = date().format("DD/MM/yyyy"),
   lastWorkday =
     date().day() === 1
@@ -15,25 +15,8 @@ const table = sql.define(config.table),
       : date().subtract(1, "days").format("DD/MM/yyyy");
 let replacedByZero = "";
 
-const sendMail = async () => {
-  const noreplay = mailer.createTransport(config.email);
-  noreplay.sendMail(config.emailOptions, (err, res) => {
-    if (err) {
-      throw err;
-    } else {
-      console.log("Email sent.");
-    }
-  });
-};
-
-async function executeQuery(db, query) {
-  const { rows } = await db.query(query);
-  return rows;
-}
-
 const insertData = async (values) => {
-  let id_registros = [];
-  const db = new Client({ connectionString: config.connection });
+  const db = new Client({ connectionString: property.connection });
   try {
     await db.connect();
     await db.query("BEGIN");
@@ -101,10 +84,10 @@ async function getData(doc) {
     row_index++
   ) {
     if (rows[row_index].DATA > lastWorkday) {
-      field.push([config.table.columns[(collumn_index = 1)], doc.cnes]);
-      config.sheetColumns.forEach((column) => {
+      field.push([property.table.columns[(collumn_index = 1)], doc.cnes]);
+      property.sheetColumns.forEach((column) => {
         field.push([
-          config.table.columns[++collumn_index],
+          property.table.columns[++collumn_index],
           rows[row_index][column] === "" ||
           rows[row_index][column] === undefined
             ? "0"
@@ -137,10 +120,20 @@ const Log = (msg, filename) => {
   log.end();
 };
 
+const sendMail = async () => {
+  try {
+    const noreplay = mailer.createTransport(property.email);
+    await noreplay.sendMail(property.emailOptions);
+    console.log("Email sent.");
+  } catch (error) {
+    console.log("Send email failed.\n" + error.stack);
+  }
+};
+
 const insertDataSheet = async () => {
   try {
     let values = [];
-    for (const sheet of config.sheets) {
+    for (const sheet of property.sheets) {
       values = values.concat(await getData(sheet));
     }
     values.sort(
@@ -158,7 +151,7 @@ const insertDataSheet = async () => {
     console.log("Status failed. See log for details.");
     Log(error.stack + "\n", "log.txt");
   } finally {
-    // sendMail();
+    sendMail();
   }
 };
 
