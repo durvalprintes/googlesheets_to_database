@@ -4,3 +4,4 @@ google-credential.json
 properties.js
 *.txt
 *.lock
+*.log
