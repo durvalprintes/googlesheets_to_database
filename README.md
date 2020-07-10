@@ -1,6 +1,6 @@
 # Google Sheets API para Postgres
 
-Projeto em Javascript para importação de dados de planilhas do Google Sheets do Google Drive para uma base de dados Postgres
+Projeto em Javascript para importação de dados de planilhas do Google Sheets para uma base de dados Postgres
 
 ## Pre-requisitos
 
@@ -21,15 +21,15 @@ ou
 yarn install
 ```
 
-## Utilização
+## Execução
 
 - [x] Acesso a múltiplas planilhas, podendo conter diferente colunas com quantitativos, discriminados por um campo único, **data**.
-- [x] Para cada planilha, associo a um valor único, **co_cnes**, que ao ser inserido em uma tabela no banco de dados, será possivel identificar a origem dos registros.
-- [x] Coleta-se os dados das planilhas do dia anterior, se o registro da planilha já existir no Banco, todos os campos (quantitativos) serão atualizados, senão, novo registro é criado.
-- [x] Validação durante a leitura dos quantativos, somente é permitido valores numéricos de 0 a 999, senão será atribuído o valor 0 ao campo.
-- [x] Cria-se um arquivo **logData.txt**, detalhando os campos que foram "zerados" na validação acima.
-- [x] Na ocorrência de excessões, desde o acesso a API e até o fechar da conexão com o Banco, será criado ou inserido no arquivo **log.txt**, o detalhamento do erro.
-- [x] Envio de email ao final da execução.
+- [x] Para cada planilha, associa-se um valor único, **co_cnes**, que ao ser inserido em uma tabela no banco de dados, será possivel identificar a origem dos registros.
+- [x] Coleta-se os dados do dia anterior ao corrente nas planilhas, se existir no Banco, todos os campos (quantitativos) serão atualizados, senão novo registro é criado.
+- [x] Valida-se os quantitativos durante o acesso a API , somente é permitido inserir/atualizar valores numéricos de 0 a 999, senão será atribuído o valor 0 ao campo.
+- [x] Cria-se um arquivo **log-data.txt**, detalhando os campos que foram "zerados" na validação acima.
+- [x] Na ocorrência de excessões, desde o acesso a API e até o fechar da conexão com o Banco, será criado o arquivo **log.txt**, detalhando o erro.
+- [x] Envio de e-mail ao final, podendo conter em anexo, o arquivo `.txt` criado durante a execução.
 
 ## Algumas bibliotecas JS utilizadas
 

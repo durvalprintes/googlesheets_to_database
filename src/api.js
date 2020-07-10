@@ -1,5 +1,4 @@
 import { table, sheetColumns } from "../properties";
-import writeLog from "./log";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 
 let replacedByZero = "";
@@ -59,11 +58,5 @@ export default async function (doc, yesterday) {
       break;
     }
   }
-
-  if (replacedByZero != "") {
-    writeLog(replacedByZero, "logData.txt");
-    console.log("Some fields was replaced by 0. See data log for details.");
-  }
-
-  return registers;
+  return { registers, replacedByZero };
 }
